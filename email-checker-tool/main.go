@@ -4,58 +4,72 @@ import (
 	"bufio"
 	"fmt"
 	"log"
-	"math/rand"
 	"net"
 	"os"
 	"strings"
-	"text/scanner"
 )
 
-// https://youtu.be/jFfo23yIWac?t=11909 kalinan yer 
+// https://youtu.be/jFfo23yIWac?t=11909 kalinan yer
 
 func main() {
-    
 
-scanner := bufio.NewScanner(os.Stdin)
-fmt.Printf("domain, hasMX , hasSPF , sprRecord, hasDMARC, dmarcRecord \n")
+	scanner := bufio.NewScanner(os.Stdin)
+	fmt.Printf("domain, hasMX , hasSPF , sprRecord, hasDMARC, dmarcRecord \n")
 
-for scanner.Scan(){
-	checkDomain(scanner.Text())
-}
+	for scanner.Scan() {
+		checkDomain(scanner.Text())
+	}
 
-
-if  err := scanner.Err(); err != nil {
-	log.Fatal("Could not read from input : %v\n"  ,err)
-} 
-	
-
+	if err := scanner.Err(); err != nil {
+		log.Fatalf("Could not read from input : %v\n", err)
+	}
 
 }
 
+func checkDomain(domain string) {
 
-func checkDomain(domain string){
+	var hasMX, hasSPF, hasDMARC bool
+	var spfRecord, dmarcRecord string
 
+	mxRecords, err := net.LookupMX(domain)
 
-	var hasMX , hasSPF , hasDMARC bool 
-	var spfRecord , dmarcRecord  string 
+	if err != nil {
+		log.Printf("Error: %v\n", err)
+	}
 
-	mxRecords , err := net.LookupMX(domain)
+	if len(mxRecords) > 0 {
+		hasMX = true
+	}
 
-	if err!= nil {
-        log.Printf("Error: %v\n",err)
-    }
+	txtRecords, err := net.LookupTXT(domain)
 
-	if len(mxRecords) > 0{
-        hasMX = true
-    }
+	if err != nil {
+		log.Printf("Error: %v\n", err)
+	}
 
-	txtRecords , err :=  net.LookupTXT(domain)
+	for _, record := range txtRecords {
 
-	if err!= nil {
-        log.Printf("Error: %v\n",err)
-    }
+		if strings.HasPrefix(record, "v=spf1") {
+			hasSPF = true
+			spfRecord = record
+			break
+		}
 
-	for _, record := range txtRecords{
+		dmarcRecords, err := net.LookupTXT("_dmarc" + domain)
+
+		if err != nil {
+			log.Printf("Error: %v\n", err)
+		}
+
+		for _, record := range dmarcRecords {
+			if strings.HasPrefix(record, "v=DMARC1") {
+				hasDMARC = true
+				dmarcRecord = record
+				break
+			}
+		}
+
+		fmt.Printf("%v, %v, %v, %v, %v, %v", domain, hasMX, hasSPF, spfRecord, hasDMARC, dmarcRecord)
 
 	}
 
